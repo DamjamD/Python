@@ -1,4 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, Header,Request
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 import pandas as pd
 from faker import Faker
 
@@ -264,3 +267,19 @@ async def auto_grava(numero_registro: int):
             result.append(data)
     print(result)
     return result
+
+if __name__ == "__main__":
+    # Adicione suporte CORS se necessário
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Adicione suporte para redirecionar HTTP para HTTPS
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+    # Certifique-se de ajustar o caminho dos certificados conforme necessário
+    #uvicorn.run(app, host="127.0.0.1", port=8000, ssl_keyfile="key.pem", ssl_certfile="cert.pem", reload=True)
