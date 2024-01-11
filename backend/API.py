@@ -1,46 +1,34 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, Request
-from fastapi.security import APIKeyHeader
-import timber
-import uvicorn
+from fastapi import FastAPI, HTTPException, Depends, Header,Request
+from datasource.api import APICollector
+from contracts.schema import SeguroSchema
+from azurestore.client import AzureBlobStorage
+import pandas as pd
+from faker import Faker
 
+fake = Faker()
 app = FastAPI()
 
-# Configurações para Timber
-timber.api_key = "MY_KEY"
-timber.source_id = "NOME_DO_SEU_APLICATIVO"
+schema = SeguroSchema
+azure = AzureBlobStorage()
 
-# Configurações para API Key
-API_KEY = "MY_KEY"
-api_key_header = APIKeyHeader(name="X-Api-Key")
+SECRET_KEY = "MY_KEY"
 
-# Middleware para verificar a API Key
-async def get_api_key(api_key: str = Depends(api_key_header)):
+def verify_key(api_key: str = Header(...)):
     print(api_key)
-    if api_key == API_KEY:
-        return api_key
-    else:
-        raise HTTPException(status_code=403, detail="API Key inválida")
+    
+    
+@app.post("/auto_grava") 
+async def auto_grava(request: Request):
+  data = await request.json()
+  
+  collector = APICollector(schema, azure, data).start(data)
+  
+  #print(api_key)
+  return {"Sucesso": collector}
 
-# Rota para criar um novo cliente
-@app.post("/auto_grava")
-async def auto_grava(request: Request, client_info: dict, api_key: APIKeyHeader = Depends(get_api_key)):
-    # Acesse o corpo da requisição através do objeto `request
-    # 
-    # `
-    print(api_key)
 
-    body = await request.json()
-    print(body)
+    # Adicione suporte para redirecionar HTTP para HTTPS
+    #app.add_middleware(HTTPSRedirectMiddleware)
 
-    # Faça o que precisar com as informações do cliente
-    # Neste exemplo, retorna as informações do corpo da requisição
-    return {"status": "success", "client_info": body}
-
-if __name__ == "__main__":
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=8022,
-        ssl_keyfile="key.pem",
-        ssl_certfile="cert.pem",
-    )
+    # Certifique-se de ajustar o caminho dos certificados conforme necessário
+    #uvicorn.run(app, host="127.0.0.1", port=8000, ssl_keyfile="key.pem", ssl_certfile="cert.pem", reload=True)

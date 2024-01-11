@@ -7,9 +7,9 @@ class AzureBlobStorage:
         # Carregue as variáveis de ambiente do arquivo .env
         load_dotenv()
         # Obtenha as credenciais do ambiente
-        account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
+        account_name =  os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
         account_key = os.environ.get("AZURE_STORAGE_ACCOUNT_KEY")
-        container_name = os.environ.get("AZURE_STORAGE_CONTAINER_NAME")
+        container_name =  os.environ.get("AZURE_STORAGE_CONTAINER_NAME")
 
         if not (account_name and account_key and container_name):
             raise ValueError("Certifique-se de definir as variáveis de ambiente corretas.")

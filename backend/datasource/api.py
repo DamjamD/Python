@@ -1,31 +1,36 @@
 import requests
 import pandas as pd
 import datetime
+import json
 from io import BytesIO
 from contracts.schema import GenericSchema
 from typing import List
 
 
 class APICollector:
-    def __init__(self, schema, azure):
+    def __init__(self, schema, azure, data):
         self._schema = schema
         self._azure = azure
         self._buffer = None
+        self._data = data
         return
 
-    def start(self, param):
-        response = self.getData(param)
+    def start(self, data):
+        #response = self.getData(param)
+        response = data
         response = self.extractData(response)
         response = self.transformDf(response)
+        print(type(response))
         response = self.convertToParquet(response)
+    
 
         if self._buffer is not None:
             file_name = self.fileName()
-    
+       
             self._azure.upload_file(self._buffer.getvalue(), file_name)
-            return True
+            return response
 
-        return False
+        return response
 
     def getData(self, param):
         response = None
@@ -39,23 +44,44 @@ class APICollector:
 
     def extractData(self, response):
         result: List[GenericSchema] = []
-        for item in response:
-            index = {}
-            for key, value in self._schema.items():
-                if type(item.get(key)) == value:
-                    index[key] = item[key]
-                else:
-                    index[key] = None
-            result.append(index)
+
+        index = {}
+        for key, expected_type in self._schema.items():
+            item_value = response.get(key)
+            
+            # Verificar se a chave está presente e o tipo é o esperado
+            if item_value is not None and isinstance(item_value, expected_type):
+                index[key] = item_value
+            else:
+                # Se a validação falhar, você pode optar por omitir a chave ou definir como None
+                index[key] = None
+
+        result.append(index)
+
         return result
+
 
     def transformDf(self, response):
-        result = pd.DataFrame(response)
-        return result
+        df = pd.json_normalize(response)
+        itens_list = df['itens'].tolist()
+        itens_df = pd.DataFrame()
+        
+        for i, item_dict in enumerate(itens_list):
+            prefix = f'item_{i}_'
+            item_df = pd.json_normalize(item_dict, sep='_')
+            
+            item_df.columns=[f'{prefix}{col}' for col in item_df.columns]
+            itens_df = pd.concat([itens_df, item_df], axis=1)
+        
+        
+        df = pd.concat([df, itens_df], axis=1)
+        df = df.drop(columns=['itens'])
+      
+        return df
 
     def convertToParquet(self, response):
-        print(response)
         self._buffer = BytesIO()
+        
         try:
             response.to_parquet(self._buffer)
             return self._buffer
@@ -66,4 +92,4 @@ class APICollector:
     def fileName(self):
         data_atual = datetime.datetime.now().isoformat()
         match = data_atual.split(".")
-        return f"Teleport/auto_grava{match[0]}.parquet"
+        return f"teleport/auto_grava/{match[0]}.parquet"
