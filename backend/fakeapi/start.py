@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, Header,Request
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
+#from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+#from fastapi.middleware.cors import CORSMiddleware
+#import uvicorn
 import pandas as pd
 from faker import Faker
 
@@ -12,16 +12,16 @@ SECRET_KEY = "MY_KEY"
 
 def verify_key(api_key: str = Header(...)):
     print(api_key)
-    if api_key != SECRET_KEY:
-        raise HTTPException(status_code=401, detail="Acesso não autorizado: Informe a Secret Key")
+    #if api_key != SECRET_KEY:
+    #    raise HTTPException(status_code=401, detail="Acesso não autorizado: Informe a Secret Key")
 
 
 @app.post("/auto_grava") 
-async def auto_grava(request: Request, api_key: str = Depends(verify_key)):
+async def auto_grava(request: Request):
   data = await request.json()
 
-  #print(data)
-  print(api_key)
+  
+  #print(api_key)
   return {"received_data": data}
 
 @app.get("/auto_grava")
@@ -268,18 +268,9 @@ async def auto_grava(numero_registro: int):
     print(result)
     return result
 
-if __name__ == "__main__":
-    # Adicione suporte CORS se necessário
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     # Adicione suporte para redirecionar HTTP para HTTPS
-    app.add_middleware(HTTPSRedirectMiddleware)
+    #app.add_middleware(HTTPSRedirectMiddleware)
 
     # Certifique-se de ajustar o caminho dos certificados conforme necessário
     #uvicorn.run(app, host="127.0.0.1", port=8000, ssl_keyfile="key.pem", ssl_certfile="cert.pem", reload=True)
