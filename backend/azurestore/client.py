@@ -35,6 +35,8 @@ class AzureBlobStorage:
             print("Upload concluído com sucesso.")
         except Exception as e:
             print(f"Erro durante o upload: {e}")
+            return False
+            
 
 
     def download_blob(self, blob_name, local_file_path=None):

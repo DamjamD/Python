@@ -13,22 +13,29 @@ azure = AzureBlobStorage()
 
 SECRET_KEY = "MY_KEY"
 
-def verify_key(api_key: str = Header(...)):
-    print(api_key)
-    
+def verify_key(request: Request):
+  
+    expected_headers = {
+        "Content-Type": "application/json",
+        "user-agent": "Webhook TELEPORT",
+        "X-Teleport-Event": "AUTO_GRAVA",
+    }
+
+    for header, expected_value in expected_headers.items():
+        if header.lower() not in request.headers:
+            raise HTTPException(status_code=400, detail=f"Header incorreto na requisição.")
+
+        actual_value = request.headers[header.lower()]
+        if actual_value != expected_value:
+            raise HTTPException(status_code=401, detail=f"Autenticacao Invalida")
+
+
     
 @app.post("/auto_grava") 
-async def auto_grava(request: Request):
+async def auto_grava(request: Request, _=Depends(verify_key)):
+  header = request.headers
   data = await request.json()
-  
+  #print(header)
   collector = APICollector(schema, azure, data).start(data)
   
-  #print(api_key)
   return {"Sucesso": collector}
-
-
-    # Adicione suporte para redirecionar HTTP para HTTPS
-    #app.add_middleware(HTTPSRedirectMiddleware)
-
-    # Certifique-se de ajustar o caminho dos certificados conforme necessário
-    #uvicorn.run(app, host="127.0.0.1", port=8000, ssl_keyfile="key.pem", ssl_certfile="cert.pem", reload=True)

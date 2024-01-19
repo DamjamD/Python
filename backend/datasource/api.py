@@ -5,6 +5,7 @@ import json
 from io import BytesIO
 from contracts.schema import GenericSchema
 from typing import List
+import uuid
 
 
 class APICollector:
@@ -16,21 +17,26 @@ class APICollector:
         return
 
     def start(self, data):
-        #response = self.getData(param)
-        response = data
-        response = self.extractData(response)
-        response = self.transformDf(response)
-        print(type(response))
-        response = self.convertToParquet(response)
-    
-
-        if self._buffer is not None:
+        try:
+            response = data
+            response = self.extractData(response)
+            #response = self.transformarDF(response)
+            #response = self.convertToParquet(response)
             file_name = self.fileName()
-       
-            self._azure.upload_file(self._buffer.getvalue(), file_name)
-            return response
 
-        return response
+      
+            if   self._azure.upload_file(response, file_name):
+                print('Foi sucesso')
+                return True
+            
+            else: False
+                
+
+        except Exception as error:
+            print(f"Erro geral: {error}")
+            return False
+
+        return False
 
     def getData(self, param):
         response = None
@@ -43,23 +49,22 @@ class APICollector:
         return response
 
     def extractData(self, response):
-        result: List[GenericSchema] = []
+        result = []
 
-        index = {}
-        for key, expected_type in self._schema.items():
+        for key in response.keys():
             item_value = response.get(key)
-            
-            # Verificar se a chave está presente e o tipo é o esperado
-            if item_value is not None and isinstance(item_value, expected_type):
-                index[key] = item_value
-            else:
-                # Se a validação falhar, você pode optar por omitir a chave ou definir como None
-                index[key] = None
+            result.append({key: item_value})
+       
+        json_string = json.dumps(result)
+        #print(json_string)
+        return json_string
+    
 
-        result.append(index)
-
-        return result
-
+    def transformarDF(self, response):
+        df = pd.read_json(response)
+       # print(df)
+        return df
+        
 
     def transformDf(self, response):
         df = pd.json_normalize(response)
@@ -67,6 +72,7 @@ class APICollector:
         itens_df = pd.DataFrame()
         
         for i, item_dict in enumerate(itens_list):
+            
             prefix = f'item_{i}_'
             item_df = pd.json_normalize(item_dict, sep='_')
             
@@ -92,4 +98,5 @@ class APICollector:
     def fileName(self):
         data_atual = datetime.datetime.now().isoformat()
         match = data_atual.split(".")
-        return f"teleport/auto_grava/{match[0]}.parquet"
+        unique_id = str(uuid.uuid4().hex)  # Gera um UUID único como string hexadecimal
+        return f"teleport/auto_grava/{match[0]}_{unique_id}.json"
