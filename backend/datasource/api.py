@@ -20,23 +20,24 @@ class APICollector:
         try:
             response = data
             response = self.extractData(response)
-            #response = self.transformarDF(response)
-            #response = self.convertToParquet(response)
-            file_name = self.fileName()
-
-      
-            if   self._azure.upload_file(response, file_name):
-                print('Foi sucesso')
-                return True
+            response = self.transformDf(response)
+            response = self.convertToJson(response)
             
-            else: False
-                
+            if self._buffer is not None:
+                file_name = self.fileName()
+                try:
+                    self._azure.upload_file(self._buffer.getvalue(),file_name)
+                    return True
+                except Exception as e:
+                    print(f"Erro ao Fazer Upload de Arquivo: {e}")
+                    return False
 
         except Exception as error:
             print(f"Erro geral: {error}")
             return False
 
         return False
+    
 
     def getData(self, param):
         response = None
@@ -47,43 +48,38 @@ class APICollector:
         else:
             response = requests.get("http://127.0.0.1:8000/auto_grava").json()
         return response
-
-    def extractData(self, response):
-        result = []
-
-        for key in response.keys():
-            item_value = response.get(key)
-            result.append({key: item_value})
-       
-        json_string = json.dumps(result)
-        #print(json_string)
-        return json_string
     
 
-    def transformarDF(self, response):
-        df = pd.read_json(response)
-       # print(df)
-        return df
+    def extractData(self, response, separator='_'):
+        result = {}
+        
+       
+        def recursive_extract(obj, prefix=''):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    new_key = f"{prefix}{key}" if prefix else key
+                   
+                    recursive_extract(value, new_key)
+            elif isinstance(obj, list):
+                for i, item in enumerate(obj):
+                    recursive_extract(item, f"{prefix}{i}{separator}")
+            else:
+                result[prefix] = obj
+
+        recursive_extract(response)
+        return result
         
 
     def transformDf(self, response):
-        df = pd.json_normalize(response)
-        itens_list = df['itens'].tolist()
-        itens_df = pd.DataFrame()
-        
-        for i, item_dict in enumerate(itens_list):
+        try:
+            df = pd.json_normalize(response, record_path=None)
+            json_result = df.to_json()
+            return df
             
-            prefix = f'item_{i}_'
-            item_df = pd.json_normalize(item_dict, sep='_')
-            
-            item_df.columns=[f'{prefix}{col}' for col in item_df.columns]
-            itens_df = pd.concat([itens_df, item_df], axis=1)
+        except Exception as e:
+            print(f"Erro durante a normalização do JSON: {e}")
+            return e
         
-        
-        df = pd.concat([df, itens_df], axis=1)
-        df = df.drop(columns=['itens'])
-      
-        return df
 
     def convertToParquet(self, response):
         self._buffer = BytesIO()
@@ -94,6 +90,17 @@ class APICollector:
         except:
             print("Erro ao transformar o DF em parquet")
             self._buffer = None
+    
+    def convertToJson(self, response):
+        try:
+            self._buffer = BytesIO()
+            response.to_json(self._buffer, orient='records', lines=True, force_ascii=False)
+            return self._buffer
+        except Exception as e:
+            print(f"Erro ao transformar o DF em JSON: {e}")
+            self._buffer = None
+            return None
+
 
     def fileName(self):
         data_atual = datetime.datetime.now().isoformat()

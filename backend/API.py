@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, Header,Request
 from datasource.api import APICollector
 from contracts.schema import SeguroSchema
@@ -11,14 +13,14 @@ app = FastAPI()
 schema = SeguroSchema
 azure = AzureBlobStorage()
 
-SECRET_KEY = "MY_KEY"
+
 
 def verify_key(request: Request):
-  
+   
     expected_headers = {
         "Content-Type": "application/json",
-        "user-agent": "Webhook TELEPORT",
-        "X-Teleport-Event": "AUTO_GRAVA",
+        "user-agent": os.environ.get('HEADER_USER'),
+        "X-Teleport-Event": os.environ.get('HEADER_EVENT')
     }
 
     for header, expected_value in expected_headers.items():
@@ -33,9 +35,9 @@ def verify_key(request: Request):
     
 @app.post("/auto_grava") 
 async def auto_grava(request: Request, _=Depends(verify_key)):
-  header = request.headers
+
   data = await request.json()
-  #print(header)
+
   collector = APICollector(schema, azure, data).start(data)
   
   return {"Sucesso": collector}
