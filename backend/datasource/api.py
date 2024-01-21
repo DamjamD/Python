@@ -9,14 +9,15 @@ import uuid
 
 
 class APICollector:
-    def __init__(self, schema, azure, data):
+    def __init__(self, schema, azure, data, path):
         self._schema = schema
         self._azure = azure
         self._buffer = None
         self._data = data
+        self._path = path
         return
 
-    def start(self, data):
+    def start(self, data, path):
         try:
             response = data
             response = self.extractData(response)
@@ -24,7 +25,7 @@ class APICollector:
             response = self.convertToJson(response)
             
             if self._buffer is not None:
-                file_name = self.fileName()
+                file_name = self.fileName(path)
                 try:
                     self._azure.upload_file(self._buffer.getvalue(),file_name)
                     return True
@@ -102,8 +103,8 @@ class APICollector:
             return None
 
 
-    def fileName(self):
+    def fileName(self, path):
         data_atual = datetime.datetime.now().isoformat()
         match = data_atual.split(".")
         unique_id = str(uuid.uuid4().hex)  # Gera um UUID único como string hexadecimal
-        return f"teleport/auto_grava/{match[0]}_{unique_id}.json"
+        return f"teleport/{path}/{match[0]}_{unique_id}.json"
